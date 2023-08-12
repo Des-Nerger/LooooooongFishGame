@@ -1,5 +1,6 @@
 SOURCES := $(wildcard *.java)
 CLASSES := $(patsubst %.java,%.class,$(SOURCES))
+JAVA_RELEASE := 10 # 8
 
 all: $(CLASSES) LooooooongFishGame.jar
 
@@ -7,8 +8,7 @@ LooooooongFishGame.jar: META-INF/MANIFEST.MF
 	zip -0 -r - $< >$@
 
 %.class: %.java
-	@#    --release 8
-	javac --release 10 -cp 'libs-linux64/*:.' $<
+	javac --release $(JAVA_RELEASE) -cp 'libs-linux64/*:.' $<
 
 .PHONY: clean fmt run
 

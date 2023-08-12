@@ -58,19 +58,19 @@ public class LooooooongFishGame implements ApplicationListener, InputProcessor {
 		rudyTexture = _atlas.getTextures().first();
 		var _json = new SkeletonJson(_atlas);
 		_json.setScale(0.755f);
-		var _skeletonData = _json.readSkeletonData(Gdx.files.internal(_filePrefix + ".json"));
-		standAnim = _skeletonData.findAnimation("wait_stand");
-		walkAnim = _skeletonData.findAnimation("walk-cycle");
-		sitDownAnim = _skeletonData.findAnimation("sit-down");
-		sitWaitAnim = _skeletonData.findAnimation("sit-wait");
-		var _stateData = new AnimationStateData(_skeletonData);
-		_stateData.setDefaultMix(0.1f);
-		_stateData.setMix("sit-down", "wait_stand", 0.33f);
-		_stateData.setMix("sit-wait", "wait_stand", 0.33f);
+		var _skeletData = _json.readSkeletonData(Gdx.files.internal(_filePrefix + ".json"));
+		standAnim = _skeletData.findAnimation("wait_stand");
+		walkAnim = _skeletData.findAnimation("walk-cycle");
+		sitDownAnim = _skeletData.findAnimation("sit-down");
+		sitWaitAnim = _skeletData.findAnimation("sit-wait");
+		var _stateData = new AnimationStateData(_skeletData);
+		_stateData.setDefaultMix(0.05f);
+		_stateData.setMix(sitDownAnim, standAnim, 0.33f);
+		_stateData.setMix(sitWaitAnim, standAnim, 0.33f);
 		animState = new AnimationState(_stateData);
-		// animState.setTimeScale(0.1f);
+		// animState.setTimeScale(0.05f);
 		entry = animState.setAnimation(0, standAnim, true);
-		skelet = new Skeleton(_skeletonData);
+		skelet = new Skeleton(_skeletData);
 		axisBone = skelet.findBone(/*-* "bone" /*/ "bone2" /*-*/);
 		toe0 = skelet.findBone("bone17");
 		toe1 = skelet.findBone("bone21");
@@ -112,7 +112,7 @@ public class LooooooongFishGame implements ApplicationListener, InputProcessor {
 			}
 			if (entry.getAnimation() == standAnim) {
 				entry = animState.setAnimation(0, walkAnim, true);
-				is_toe0_supporting = true;
+				is_toe0_supporting = false;
 				areBothToesOnGround = false;
 			}
 			break;
@@ -122,7 +122,7 @@ public class LooooooongFishGame implements ApplicationListener, InputProcessor {
 			}
 			if (entry.getAnimation() == standAnim) {
 				entry = animState.setAnimation(0, walkAnim, true);
-				is_toe0_supporting = true;
+				is_toe0_supporting = false;
 				areBothToesOnGround = false;
 			}
 			break;
@@ -178,15 +178,16 @@ public class LooooooongFishGame implements ApplicationListener, InputProcessor {
 		}
 		if (entry.getAnimation() == walkAnim) {
 			var _skelet_x = skelet.getX();
+			var _skelet_scaleX = skelet.getScaleX();
 			if (entry.getMixingFrom() == null) {
-				var _areBothToesOnGround = areBothToesOnGround;
+				var _wereBothToesOnGround = areBothToesOnGround;
 				areBothToesOnGround = Math.abs(toe0.getWorldY() - toe1.getWorldY()) < 4f;
-				if (!_areBothToesOnGround & areBothToesOnGround) {
+				if (!_wereBothToesOnGround & areBothToesOnGround) {
 					is_toe0_supporting ^= true;
 				}
 				_skelet_x += is_toe0_supporting ? (_toe0_x - toe0.getWorldX()) : (_toe1_x - toe1.getWorldX());
 			}
-			if (skelet.getScaleX() < 0) {
+			if (_skelet_scaleX < 0) {
 				if (_skelet_x < 0) {
 					_skelet_x += 1350;
 				}
@@ -201,25 +202,28 @@ public class LooooooongFishGame implements ApplicationListener, InputProcessor {
 		batch.begin();
 		batch.draw(bgTexture, 0, 0);
 		/*
-    var _offset = new Vector2();
-    var _size = new Vector2();
-    skelet.getBounds(_offset, _size, tempFloats);
-    batch.draw(
-    	rudyTexture,
-    	_offset.x, _offset.y,
-    	_size.x, _size.y,
-    	80, 12, 1, 1, // red-colored pixel
-    	false, false);
-    */
+		var _offset = new Vector2();
+		var _size = new Vector2();
+		skelet.getBounds(_offset, _size, tempFloats);
+		batch.draw(
+			rudyTexture,
+			_offset.x, _offset.y,
+			_size.x, _size.y,
+			80, 12, 1, 1, // red-colored pixel
+			false, false);
+		*/
 		renderer.draw(batch, skelet);
 		/*
-    batch.draw(
-    	rudyTexture,
-    	axisBone.getWorldX() - 8, axisBone.getWorldY() - 8,
-    	16, 16,
-    	259, 127, 1, 1, // green-colored pixel
-    	false, false);
-    */
+		if (entry.getAnimation() == walkAnim) {
+			var toe = is_toe0_supporting? toe0 : toe1;
+			batch.draw(
+				rudyTexture,
+				toe.getWorldX() - 8, toe.getWorldY() - 8,
+				16, 16,
+				259, 127, 1, 1, // green-colored pixel
+				false, false);
+		}
+		*/
 		batch.end();
 	}
 
