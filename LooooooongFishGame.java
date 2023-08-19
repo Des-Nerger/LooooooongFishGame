@@ -1,3 +1,5 @@
+import static java.lang.System.err;
+
 import com.badlogic.gdx.ApplicationListener;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input.Keys;
@@ -26,16 +28,14 @@ public class LooooooongFishGame implements ApplicationListener, InputProcessor {
 	private Animation standAnim;
 	private Animation walkAnim;
 	private Animation sitDownAnim;
+	private Animation sitUpAnim;
 	private Animation sitWaitAnim;
 	private SkeletonRenderer renderer;
 	private Skeleton skelet;
 	private AnimationState animState;
-	private AnimationState.TrackEntry entry;
 	private Bone axisBone;
 	private Bone toe0;
 	private Bone toe1;
-	private boolean is_toe0_supporting;
-	private boolean areBothToesOnGround;
 	private boolean paused;
 	private FloatArray tempFloats;
 
@@ -46,6 +46,17 @@ public class LooooooongFishGame implements ApplicationListener, InputProcessor {
 
 	private State state;
 
+	private AnimationState.TrackEntry entry() {
+		return animState.getCurrent(0);
+	}
+
+	private boolean is_toe0_supporting() {
+		var _entry = this.entry();
+		if (_entry.getAnimation() != walkAnim) return true;
+		var _animTime = _entry.getAnimationTime();
+		return (0.025f <= _animTime) & (_animTime <= 0.7f);
+	}
+
 	@Override
 	public void create() {
 		batch = new PolygonSpriteBatch();
@@ -53,7 +64,7 @@ public class LooooooongFishGame implements ApplicationListener, InputProcessor {
 		bgTexture = new Texture(Gdx.files.internal(_dirPrefix + "bg.png"));
 		renderer = new SkeletonRenderer();
 		renderer.setPremultipliedAlpha(true);
-		final var _filePrefix = _dirPrefix + "rudy001-sit-wait";
+		final var _filePrefix = _dirPrefix + "rudy"; // 18 Aug 2023
 		var _atlas = new TextureAtlas(Gdx.files.internal(_filePrefix + ".atlas"));
 		rudyTexture = _atlas.getTextures().first();
 		var _json = new SkeletonJson(_atlas);
@@ -62,19 +73,30 @@ public class LooooooongFishGame implements ApplicationListener, InputProcessor {
 		standAnim = _skeletData.findAnimation("wait_stand");
 		walkAnim = _skeletData.findAnimation("walk-cycle");
 		sitDownAnim = _skeletData.findAnimation("sit-down");
+		sitUpAnim = _skeletData.findAnimation("sit-up");
 		sitWaitAnim = _skeletData.findAnimation("sit-wait");
 		var _stateData = new AnimationStateData(_skeletData);
-		_stateData.setDefaultMix(0.05f);
-		_stateData.setMix(sitDownAnim, standAnim, 0.33f);
-		_stateData.setMix(sitWaitAnim, standAnim, 0.33f);
+		_stateData.setDefaultMix(0.33f);
+		_stateData.setMix(walkAnim, walkAnim, 0.00f);
+		// _stateData.setMix(sitDownAnim, standAnim, 0.33f);
+		// _stateData.setMix(sitWaitAnim, standAnim, 0.33f);
 		animState = new AnimationState(_stateData);
-		// animState.setTimeScale(0.05f);
-		entry = animState.setAnimation(0, standAnim, true);
+		// animState.setTimeScale(0.1f);
+		/*
+		for (var timeline: walkAnim.getTimelines()) {
+			if (timeline instanceof Animation.EventTimeline) {
+				for (var event: ((Animation.EventTimeline) timeline).getEvents()) {
+					err.printf("time = %f\n", event.getTime());
+				}
+			}
+		}
+		*/
+		animState.setAnimation(0, standAnim, true);
 		skelet = new Skeleton(_skeletData);
 		axisBone = skelet.findBone(/*-* "bone" /*/ "bone2" /*-*/);
 		toe0 = skelet.findBone("bone17");
 		toe1 = skelet.findBone("bone21");
-		skelet.setPosition(1100f, 126f);
+		skelet.setPosition(1050f, 126f);
 		skelet.setScaleX(-1f);
 		skelet.updateWorldTransform();
 		tempFloats = new FloatArray();
@@ -105,38 +127,41 @@ public class LooooooongFishGame implements ApplicationListener, InputProcessor {
 
 	@Override
 	public boolean keyDown(int _keycode) {
+		final var WALK_ANIM_START = 0.40f;
+		var _entry = this.entry();
 		switch (_keycode) {
 		case Keys.A:
 			if (skelet.getScaleX() > 0f) {
 				this.rudy_turnAround();
 			}
-			if (entry.getAnimation() == standAnim) {
-				entry = animState.setAnimation(0, walkAnim, true);
-				is_toe0_supporting = false;
-				areBothToesOnGround = false;
+			if (_entry.getAnimation() == standAnim && _entry.getMixingFrom() == null) {
+				_entry = animState.setAnimation(0, walkAnim, false);
+				_entry.setAnimationStart(WALK_ANIM_START);
+				animState.addAnimation(0, walkAnim, true, 0f);
 			}
 			break;
 		case Keys.D:
 			if (skelet.getScaleX() < 0f) {
 				this.rudy_turnAround();
 			}
-			if (entry.getAnimation() == standAnim) {
-				entry = animState.setAnimation(0, walkAnim, true);
-				is_toe0_supporting = false;
-				areBothToesOnGround = false;
+			if (_entry.getAnimation() == standAnim && _entry.getMixingFrom() == null) {
+				_entry = animState.setAnimation(0, walkAnim, false);
+				_entry.setAnimationStart(WALK_ANIM_START);
+				animState.addAnimation(0, walkAnim, true, 0f);
 			}
 			break;
 		case Keys.S:
 			if (state != State.SIT) {
 				state = State.SIT;
 				animState.setAnimation(0, sitDownAnim, false);
-				entry = animState.addAnimation(0, sitWaitAnim, true, 0f);
+				animState.addAnimation(0, sitWaitAnim, true, 0f);
 			}
 			break;
 		case Keys.W:
 			if (state != State.STAND) {
 				state = State.STAND;
-				entry = animState.setAnimation(0, standAnim, true);
+				animState.setAnimation(0, sitUpAnim, false);
+				animState.addAnimation(0, standAnim, true, 0f);
 			}
 			break;
 		case Keys.ESCAPE:
@@ -144,6 +169,9 @@ public class LooooooongFishGame implements ApplicationListener, InputProcessor {
 			break;
 		case Keys.P:
 			paused ^= true;
+			break;
+		case Keys.T:
+			err.printf("animTime = %f\n", this.entry().getAnimationTime());
 			break;
 		default:
 			return false;
@@ -156,8 +184,9 @@ public class LooooooongFishGame implements ApplicationListener, InputProcessor {
 		switch (_keycode) {
 		case Keys.A:
 		case Keys.D:
-			if (entry.getAnimation() == walkAnim) {
-				entry = animState.setAnimation(0, standAnim, true);
+			var _entry = this.entry();
+			if (_entry.getAnimation() == walkAnim) {
+				animState.setAnimation(0, standAnim, true);
 			}
 			break;
 		default:
@@ -176,17 +205,13 @@ public class LooooooongFishGame implements ApplicationListener, InputProcessor {
 		if (animState.apply(skelet)) {
 			skelet.updateWorldTransform();
 		}
-		if (entry.getAnimation() == walkAnim) {
+		var _entry = this.entry();
+		if (_entry.getAnimation() == walkAnim) {
 			var _skelet_x = skelet.getX();
 			var _skelet_scaleX = skelet.getScaleX();
-			if (entry.getMixingFrom() == null) {
-				var _wereBothToesOnGround = areBothToesOnGround;
-				areBothToesOnGround = Math.abs(toe0.getWorldY() - toe1.getWorldY()) < 4f;
-				if (!_wereBothToesOnGround & areBothToesOnGround) {
-					is_toe0_supporting ^= true;
-				}
-				_skelet_x += is_toe0_supporting ? (_toe0_x - toe0.getWorldX()) : (_toe1_x - toe1.getWorldX());
-			}
+			// if (_entry.getMixingFrom() == null) {
+			_skelet_x += this.is_toe0_supporting() ? (_toe0_x - toe0.getWorldX()) : (_toe1_x - toe1.getWorldX());
+			// }
 			if (_skelet_scaleX < 0) {
 				if (_skelet_x < 0) {
 					_skelet_x += 1350;
@@ -215,13 +240,24 @@ public class LooooooongFishGame implements ApplicationListener, InputProcessor {
 		renderer.draw(batch, skelet);
 		/*
 		if (entry.getAnimation() == walkAnim) {
-			var toe = is_toe0_supporting? toe0 : toe1;
-			batch.draw(
-				rudyTexture,
-				toe.getWorldX() - 8, toe.getWorldY() - 8,
-				16, 16,
-				259, 127, 1, 1, // green-colored pixel
-				false, false);
+			var animTime = entry.getAnimationTime();
+			err.printf("animTime = %f\n", animTime);
+			if ((0.0667 <= animTime) & (animTime <= 0.7)) {
+				batch.draw(
+					rudyTexture,
+					toe0.getWorldX() - 8, toe0.getWorldY() - 8,
+					16, 16,
+					259, 127, 1, 1, // green-colored pixel
+					false, false);
+			}
+			if ((1.3 <= animTime) | (animTime <= 0.5333)) {
+				batch.draw(
+					rudyTexture,
+					toe1.getWorldX() - 8, toe1.getWorldY() - 8,
+					16, 16,
+					80, 12, 1, 1, // red-colored pixel
+					false, false);
+			}
 		}
 		*/
 		batch.end();
